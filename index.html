@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>faraway</title>
+    <title>Intuity Excel Processor</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -13,6 +13,7 @@
             --button-bg: #4CAF50;
             --button-hover: #45a049;
             --not-found-bg: #3a1f1f;
+            --warning: #ff4444;
         }
 
         [data-theme="light"] {
@@ -21,6 +22,7 @@
             --container-bg: #ffffff;
             --border-color: #cccccc;
             --not-found-bg: #ffe6e6;
+            --warning: #cc0000;
         }
 
         body {
@@ -32,7 +34,7 @@
         }
 
         .container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             background-color: var(--container-bg);
             padding: 20px;
@@ -43,202 +45,427 @@
         .logo {
             display: block;
             margin: 0 auto 20px;
-            max-width: 200px;
+            max-width: 250px;
             height: auto;
+            filter: drop-shadow(0 0 5px rgba(255,255,255,0.2));
         }
 
         .theme-toggle {
             position: fixed;
             top: 20px;
             right: 20px;
+            z-index: 1000;
         }
 
         .file-input {
             margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+            padding: 15px;
+            background: var(--container-bg);
+            border-radius: 8px;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
         }
 
         #results {
             margin-top: 20px;
             width: 100%;
             border-collapse: collapse;
+            overflow-x: auto;
         }
 
         #results th, #results td {
             border: 1px solid var(--border-color);
-            padding: 8px;
+            padding: 12px;
             text-align: left;
+            min-width: 120px;
         }
 
         #results th {
             background-color: var(--button-bg);
             color: white;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .sort-indicator {
+            margin-left: 5px;
+            font-size: 0.8em;
         }
 
         #notFoundContainer {
             margin-top: 30px;
             padding: 15px;
-            border: 2px solid #ff4444;
+            border: 2px solid var(--warning);
             border-radius: 8px;
             background-color: var(--not-found-bg);
-        }
-
-        #notFoundContainer h3 {
-            color: #ff4444;
-            margin-top: 0;
         }
 
         button {
             background-color: var(--button-bg);
             color: white;
-            padding: 10px 15px;
+            padding: 12px 18px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: all 0.3s;
+            margin: 5px;
         }
 
         button:hover {
             background-color: var(--button-hover);
+            transform: translateY(-1px);
         }
+
+        .export-buttons {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .search-container {
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        #searchInput {
+            padding: 10px;
+            width: 300px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background: var(--container-bg);
+            color: var(--text-color);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--button-bg);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .responsive-table {
+            overflow-x: auto;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .highlight {
+            background-color: rgba(255,255,0,0.1);
+        }
+
     </style>
 </head>
 <body data-theme="dark">
     <div class="container">
-        <button class="theme-toggle" onclick="toggleTheme()">Modo Claro</button>
-        <img src="https://raw.githubusercontent.com/dancartorio/intuity/main/logo.png" alt="Logo" class="logo">
-        <h1>faraway</h1>
-        <div class="file-input">
-            <input type="file" id="excelFile" accept=".xlsx, .xls">
-            <button onclick="processFile()">Processar Arquivo</button>
-        </div>
-        <table id="results">
-            <thead>
-                <tr>
-                    <th>VALOR_PROCURADO</th>
-                    <th>RESULTADO</th>
-                </tr>
-            </thead>
-            <tbody id="resultsBody"></tbody>
-        </table>
+        <button class="theme-toggle" onclick="toggleTheme()">🌓 Modo Claro</button>
+        <img src="https://raw.githubusercontent.com/dancartorio/intuity/main/logo.png" alt="Logo Intuity" class="logo">
         
-        <div id="notFoundContainer">
-            <h3>Não Encontrados:</h3>
-            <table id="notFoundResults" style="width: 100%">
+        <div class="file-input">
+            <input type="file" id="excelFile" accept=".xlsx, .xls" style="display: none;" onchange="processFile()">
+            <button onclick="document.getElementById('excelFile').click()">📁 Selecionar Arquivo</button>
+            <div class="export-buttons">
+                <button onclick="exportToExcel()" title="Exportar para Excel">📤 Exportar Excel</button>
+                <button onclick="exportToCSV()" title="Exportar para CSV">📥 Exportar CSV</button>
+            </div>
+        </div>
+
+        <div class="loading">
+            <div class="loader"></div>
+            <p>Processando arquivo...</p>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-box">
+                <h3>Total Processado</h3>
+                <span id="totalCount">0</span>
+            </div>
+            <div class="stat-box">
+                <h3>Encontrados</h3>
+                <span id="foundCount">0</span>
+            </div>
+            <div class="stat-box">
+                <h3>Não Encontrados</h3>
+                <span id="notFoundCount">0</span>
+            </div>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="🔍 Pesquisar nos resultados..." onkeyup="filterResults()">
+        </div>
+
+        <div class="responsive-table">
+            <table id="results">
                 <thead>
                     <tr>
-                        <th>VALOR_PROCURADO</th>
+                        <th onclick="sortTable(0)">VALOR_PROCURADO <span class="sort-indicator">▼</span></th>
+                        <th onclick="sortTable(1)">RESULTADO <span class="sort-indicator">▼</span></th>
+                        <th>STATUS</th>
                     </tr>
                 </thead>
-                <tbody id="notFoundBody"></tbody>
+                <tbody id="resultsBody"></tbody>
             </table>
         </div>
+        
+        <div id="notFoundContainer" style="display: none;">
+            <h3>⚠️ Não Encontrados:</h3>
+            <div class="responsive-table">
+                <table id="notFoundResults" style="width: 100%">
+                    <thead>
+                        <tr>
+                            <th onclick="sortNotFoundTable(0)">VALOR_PROCURADO <span class="sort-indicator">▼</span></th>
+                            <th>DATA/HORA</th>
+                        </tr>
+                    </thead>
+                    <tbody id="notFoundBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <footer>
+            <p>Processado por Intuity • {total} resultados • Última atualização: <span id="lastUpdate"></span></p>
+        </footer>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
+        let currentData = [];
+        let currentSortColumn = 0;
+        let sortAscending = true;
+
         function toggleTheme() {
             const body = document.body;
             const themeButton = document.querySelector('.theme-toggle');
             if (body.getAttribute('data-theme') === 'dark') {
                 body.setAttribute('data-theme', 'light');
-                themeButton.textContent = 'Modo Escuro';
+                themeButton.innerHTML = '🌙 Modo Escuro';
             } else {
                 body.setAttribute('data-theme', 'dark');
-                themeButton.textContent = 'Modo Claro';
+                themeButton.innerHTML = '🌓 Modo Claro';
             }
         }
 
-        function processFile() {
+        function showLoading(show) {
+            document.querySelector('.loading').style.display = show ? 'block' : 'none';
+        }
+
+        function updateStats(total, found, notFound) {
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('foundCount').textContent = found;
+            document.getElementById('notFoundCount').textContent = notFound;
+            document.querySelector('footer p').innerHTML = 
+                `Processado por Intuity • ${total} resultados • Última atualização: <span id="lastUpdate">${new Date().toLocaleString()}</span>`;
+        }
+
+        async function processFile() {
+            showLoading(true);
             const fileInput = document.getElementById('excelFile');
             const resultsBody = document.getElementById('resultsBody');
             const notFoundBody = document.getElementById('notFoundBody');
+            
             resultsBody.innerHTML = '';
             notFoundBody.innerHTML = '';
             document.getElementById('notFoundContainer').style.display = 'none';
+            currentData = [];
 
-            if (!fileInput.files.length) {
-                alert('Por favor, selecione um arquivo Excel.');
-                return;
+            try {
+                const file = fileInput.files[0];
+                if (!file) return;
+
+                const workbook = await readExcel(file);
+                const { columnA, columnB, columnC, searchValues } = processSheet(workbook);
+
+                let foundCount = 0;
+                let notFoundCount = 0;
+
+                searchValues.forEach(searchValue => {
+                    const result = lookupValue(searchValue, columnA, columnB, columnC);
+                    const isNotFound = result === 'Não Encontrado';
+                    
+                    const rowData = {
+                        searchValue,
+                        result,
+                        status: isNotFound ? '❌ Não encontrado' : '✅ Encontrado',
+                        timestamp: new Date().toLocaleString()
+                    };
+                    currentData.push(rowData);
+
+                    if (isNotFound) {
+                        notFoundCount++;
+                        addNotFoundRow(searchValue);
+                    } else {
+                        foundCount++;
+                        addResultRow(rowData);
+                    }
+                });
+
+                updateStats(searchValues.length, foundCount, notFoundCount);
+                if (notFoundCount > 0) {
+                    document.getElementById('notFoundContainer').style.display = 'block';
+                }
+                
+            } catch (error) {
+                alert(`Erro: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function addResultRow(data) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${data.searchValue}</td>
+                <td>${data.result}</td>
+                <td>${data.status}</td>
+            `;
+            document.getElementById('resultsBody').appendChild(row);
+        }
+
+        function addNotFoundRow(value) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${value}</td>
+                <td>${new Date().toLocaleString()}</td>
+            `;
+            document.getElementById('notFoundBody').appendChild(row);
+        }
+
+        async function readExcel(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        resolve(workbook);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = () => reject(new Error('Erro ao ler o arquivo'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function processSheet(workbook) {
+            const sheetName = 'Planilha3';
+            const sheet = workbook.Sheets[sheetName];
+            if (!sheet) throw new Error(`Planilha "${sheetName}" não encontrada`);
+
+            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+            const columnA = [], columnB = [], columnC = [], searchValues = [];
+
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (row[0]) columnA.push(String(row[0]));
+                if (row[1]) columnB.push(String(row[1]));
+                if (row[2]) columnC.push(String(row[2]));
+                if (row[3]) searchValues.push(String(row[3]));
             }
 
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    
-                    const sheetName = 'Planilha3';
-                    const sheet = workbook.Sheets[sheetName];
-                    if (!sheet) {
-                        throw new Error(`Planilha "${sheetName}" não encontrada`);
-                    }
-
-                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
-
-                    const columnA = [];
-                    const columnB = [];
-                    const columnC = [];
-                    const searchValues = [];
-
-                    for (let i = 1; i < rows.length; i++) {
-                        const row = rows[i];
-                        if (row[0]) columnA.push(row[0]);
-                        if (row[1]) columnB.push(row[1]);
-                        if (row[2]) columnC.push(row[2]);
-                        if (row[3]) searchValues.push(row[3]);
-                    }
-
-                    let hasNotFound = false;
-                    searchValues.forEach(searchValue => {
-                        const result = lookupValue(searchValue, columnA, columnB, columnC);
-                        
-                        if (result === 'Não Encontrado') {
-                            hasNotFound = true;
-                            const row = document.createElement('tr');
-                            row.innerHTML = `<td>${searchValue}</td>`;
-                            notFoundBody.appendChild(row);
-                        } else {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${searchValue}</td>
-                                <td>${result}</td>
-                            `;
-                            resultsBody.appendChild(row);
-                        }
-                    });
-
-                    if (hasNotFound) {
-                        document.getElementById('notFoundContainer').style.display = 'block';
-                    }
-
-                } catch (error) {
-                    alert(`Erro: ${error.message}`);
-                }
-            };
-
-            reader.onerror = function() {
-                alert('Erro ao ler o arquivo');
-            };
-
-            reader.readAsArrayBuffer(file);
+            return { columnA, columnB, columnC, searchValues };
         }
 
         function lookupValue(searchValue, columnA, columnB, columnC) {
-            const searchStr = String(searchValue);
+            const indexA = columnA.indexOf(searchValue);
+            if (indexA !== -1) return columnC[indexA] || 'Não Encontrado';
             
-            const indexA = columnA.findIndex(val => String(val) === searchStr);
-            if (indexA !== -1) {
-                return columnC[indexA] || 'Não Encontrado';
-            }
-
-            const indexB = columnB.findIndex(val => String(val) === searchStr);
-            if (indexB !== -1) {
-                return columnC[indexB] || 'Não Encontrado';
-            }
-
+            const indexB = columnB.indexOf(searchValue);
+            if (indexB !== -1) return columnC[indexB] || 'Não Encontrado';
+            
             return 'Não Encontrado';
+        }
+
+        function sortTable(columnIndex) {
+            const tbody = document.getElementById('resultsBody');
+            const rows = Array.from(tbody.rows);
+            
+            rows.sort((a, b) => {
+                const aValue = a.cells[columnIndex].textContent;
+                const bValue = b.cells[columnIndex].textContent;
+                return sortAscending ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+            });
+
+            if (currentSortColumn === columnIndex) {
+                sortAscending = !sortAscending;
+            } else {
+                currentSortColumn = columnIndex;
+                sortAscending = true;
+            }
+
+            tbody.append(...rows);
+            updateSortIndicators();
+        }
+
+        function filterResults() {
+            const input = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#resultsBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(input) ? '' : 'none';
+            });
+        }
+
+        function exportToExcel() {
+            const ws = XLSX.utils.json_to_sheet(currentData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Resultados");
+            XLSX.writeFile(wb, 'resultados.xlsx');
+        }
+
+        function exportToCSV() {
+            const csvContent = "data:text/csv;charset=utf-8," 
+                + currentData.map(row => 
+                    `${row.searchValue},${row.result},${row.status}`
+                ).join("\n");
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', 'resultados.csv');
+            document.body.appendChild(link);
+            link.click();
+        }
+
+        function updateSortIndicators() {
+            document.querySelectorAll('.sort-indicator').forEach(indicator => {
+                indicator.textContent = '▼';
+            });
+            document.querySelectorAll(`th:nth-child(${currentSortColumn + 1}) .sort-indicator`)
+                .forEach(indicator => {
+                    indicator.textContent = sortAscending ? '▲' : '▼';
+                });
         }
     </script>
 </body>
